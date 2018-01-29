@@ -7,20 +7,21 @@
 //
 
 import UIKit
+import CoreData
 
 class TodoListViewController: UITableViewController {
 
     var itemArray = [Item]()
     //Use File manager for paths
-    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
-    
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         loadItems()
+        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
     }
     
-    // MARK - Tableview Datasource Methods.
+    // MARK: - Tableview Datasource Methods.
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return itemArray.count
     }
@@ -44,7 +45,7 @@ class TodoListViewController: UITableViewController {
         return cell
     }
     
-    // MARK - Tableview Delegate Methods
+    // MARK: - Tableview Delegate Methods
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         //print ("You chose \(indexPath.row) which is \(itemArray[indexPath.row])")
         itemArray[indexPath.row].done = !itemArray[indexPath.row].done
@@ -53,7 +54,7 @@ class TodoListViewController: UITableViewController {
         tableView.deselectRow(at: indexPath, animated: true)
     }
     
-    // MARK - Add new Items
+    // MARK: - Add new Items
     @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
         var textField = UITextField()
         
@@ -62,9 +63,9 @@ class TodoListViewController: UITableViewController {
             // What will happen when the user clicks add item button on UIAlert
             //print(textField.text!)
             
-            let newItem = Item(_title: textField.text!, _done: false)
+            let newItem = Item(context: self.context)
             newItem.title = textField.text!
-            
+            newItem.done = false 
             self.itemArray.append(newItem)
             
             //save the value in user default
@@ -82,25 +83,45 @@ class TodoListViewController: UITableViewController {
     }
     
     func saveItems () {
-        let encoder = PropertyListEncoder()
         do {
-            let data = try encoder.encode(itemArray)
-            try data.write(to: dataFilePath!)
+            try context.save()
         } catch {
-            print("Error encoding Item array, \(error)")
+            print("Error saving Item Core Data, \(error)")
         }
     }
     
-    func loadItems() {
-        if let data = try? Data(contentsOf: dataFilePath!) {
-            let decoder = PropertyListDecoder()
-            do {
-                itemArray = try decoder.decode([Item].self, from: data)
-            } catch {
-                print("Error decoding item array, \(error)")
-            }
-            
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest()) {
+        
+        do {
+            itemArray = try context.fetch(request)            
+        } catch {
+            print("Error fetching data from context \(error)")
         }
     }
 }
 
+
+// MARK: - Search Bar Methods
+extension  TodoListViewController: UISearchBarDelegate {
+    // Search for item after search commences
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        let request : NSFetchRequest<Item> = Item.fetchRequest()
+        request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+        
+        loadItems(with: request)
+        
+        tableView.reloadData()
+    }
+    
+    // Go back to original list after search is completed
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchBar.text?.count == 0 {
+            loadItems()
+            DispatchQueue.main.async {
+                searchBar.resignFirstResponder()
+            }
+        }
+        
+    }
+}
