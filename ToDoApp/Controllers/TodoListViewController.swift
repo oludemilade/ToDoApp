@@ -12,12 +12,16 @@ import CoreData
 class TodoListViewController: UITableViewController {
 
     var itemArray = [Item]()
+    var selectedCategory : Category? {
+        didSet{
+            loadItems()
+        }
+    }
     //Use File manager for paths
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
-        loadItems()
         print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
     }
     
@@ -65,7 +69,8 @@ class TodoListViewController: UITableViewController {
             
             let newItem = Item(context: self.context)
             newItem.title = textField.text!
-            newItem.done = false 
+            newItem.done = false
+            newItem.parentCategory = self.selectedCategory
             self.itemArray.append(newItem)
             
             //save the value in user default
