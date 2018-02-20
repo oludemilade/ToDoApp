@@ -13,7 +13,7 @@ import RealmSwift
 class TodoListViewController: UITableViewController {
 
     let realm = try! Realm()
-    var itemArray : Results<Item>?
+    var toDoItems : Results<Item>?
     var selectedCategory : Category? {
         didSet{
             loadItems()
@@ -28,12 +28,12 @@ class TodoListViewController: UITableViewController {
     
     // MARK: - Tableview Datasource Methods.
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return itemArray?.count ?? 1
+        return toDoItems?.count ?? 1
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "TodoItemCell", for: indexPath)
-        if let item = itemArray?[indexPath.row] {
+        if let item = toDoItems?[indexPath.row] {
             cell.textLabel?.text = item.title
             
             // Ternary Operator
@@ -49,7 +49,7 @@ class TodoListViewController: UITableViewController {
     // MARK: - Tableview Delegate Methods
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-        if let item = itemArray?[indexPath.row]{
+        if let item = toDoItems?[indexPath.row]{
             do {
                 try realm.write {
                     //realm.delete(item) delete item
@@ -77,6 +77,7 @@ class TodoListViewController: UITableViewController {
                     try self.realm.write {
                         let newItem = Item()
                         newItem.title = textField.text!
+                        newItem.timeCreated = Date()
                         currentCategory.items.append(newItem)
                     }
                 } catch {
@@ -99,34 +100,29 @@ class TodoListViewController: UITableViewController {
     }
     
     func loadItems() {
-        itemArray = selectedCategory?.items.sorted(byKeyPath: "title", ascending: true)
+        toDoItems = selectedCategory?.items.sorted(byKeyPath: "title", ascending: true)
         tableView.reloadData()
     }
 }
 
 
-//// MARK: - Search Bar Methods
-//extension  TodoListViewController: UISearchBarDelegate {
-//    // Search for item after search commences
-//    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-//        let request : NSFetchRequest<Item> = Item.fetchRequest()
-//        request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
-//        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
-//        
-//        loadItems(with: request)
-//        
-//        tableView.reloadData()
-//    }
-//    
-//    // Go back to original list after search is completed
-//    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-//        if searchBar.text?.count == 0 {
-//            loadItems()
-//            DispatchQueue.main.async {
-//                searchBar.resignFirstResponder()
-//            }
-//        }
-//        
-//    }
-//}
+// MARK: - Search Bar Methods
+extension  TodoListViewController: UISearchBarDelegate {
+    // Search for item after search commences
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        toDoItems = toDoItems?.filter("title CONTAINS[cd] %@", searchBar.text!).sorted(byKeyPath: "timeCreated", ascending: true)
+        tableView.reloadData()
+    }
+    
+    // Go back to original list after search is completed
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchBar.text?.count == 0 {
+            loadItems()
+            DispatchQueue.main.async {
+                searchBar.resignFirstResponder()
+            }
+        }
+        
+    }
+}
 
